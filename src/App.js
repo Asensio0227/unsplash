@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import{ useEffect, useState, useRef } from 'react';
 import Navbar from './components/Navbar';
 import Loading from './components/Loading';
 import Photo from './components/Photo';
@@ -7,15 +7,17 @@ import { FaSearch } from 'react-icons/fa';
 const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState('');
-  const [clientID,setClientID] = useState(process.env.REACT_APP_ACCESS_KEy)
-  const [page, setPage] = useState(0);
+  const [clientID, setClientID] = useState(process.env.REACT_APP_ACCESS_KEy);
+  const mounted = useRef(false);
+  const [page, setPage] = useState(1);
   const [photo, setPhoto] = useState([]);
+  const [newImages, setNewImages] = useState(false);
   
   const getImages = async () => {
     setIsLoading(true);
     let url;
     if (query) {
-      url=`https://api.unsplash.com/search/photos?page=${page}&query=${query}&client_id=${clientID}`;
+      url = `https://api.unsplash.com/search/photos?page=${page}&query=${query}&client_id=${clientID}`;
     } else {
       url = `https://api.unsplash.com/search/photos?page=1&query=flowers&client_id=${clientID}`;
     }
@@ -33,9 +35,9 @@ const App = () => {
             urls: {
               regular
             },
-            user :{profile_image : {
+            user: { profile_image: {
               medium
-            }},
+            } },
             portfolio_url
           } = item;
           return {
@@ -44,23 +46,69 @@ const App = () => {
             regular,
             medium,
             portfolio: portfolio_url,
-            description:alt_decription,
+            description: alt_decription,
           }
         })
-        setPhoto(newPhotos);
+        setPhoto((newPhoto) => {
+          if (query && page === 1) {
+            return newPhotos
+          } else if (query) {
+            return [...newPhoto, ...newPhotos]
+          } else {
+            return [...newPhoto, ...newPhotos]
+          }
+        });
+        setNewImages(false);
         setIsLoading(false);
       } else {
         setPhoto([])
       }
     } catch (error) {
-      setIsLoading(false);
       console.log(error);
+      setNewImages(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     getImages()
-  },[page])
+    // eslint-disable-next-line
+  },[page]);
+
+  
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+    }
+    if(!newImages)return;
+    if (isLoading) return;
+    setPage((oldPage) => oldPage + 1);
+     // eslint-disable-next-line
+  }, [newImages]);
+
+  const event = window.addEventListener('scroll', () => {
+    if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 2) {
+      setNewImages(true);
+    }
+  });
+
+  useEffect(() => {
+    window.addEventListener('scroll', event);
+    return window.removeEventListener('scroll', event);
+     // eslint-disable-next-line
+  }, []);
+
+  // useEffect(() => {
+  //   const event = window.addEventListener('scroll', () => {
+  //     if (!isLoading && (window.innerHeight + window.scrollY) >= document.body.scrollHeight - 2) {
+  //       setPage((oldPage) => {
+  //         return oldPage + 1;
+  //       })
+  //     }
+  //   });
+  //   return window.removeEventListener('scroll', event);
+  //   // eslint-disable-next-line
+  // }, []);
 
   if (isLoading) {
     return (
@@ -72,8 +120,12 @@ const App = () => {
 
   const handlerChange = (e) => {
     e.preventDefault();
+    if (!query) return;
+    if (page === 1) {
+      getImages();
+      return;
+    }
     setPage(1)
-    getImages();
   }
 
   return (
@@ -106,11 +158,11 @@ const App = () => {
         </section>
         <section className="section">
           <div className="photo-center">
-            {photo.map((item,index) => {
-              return <Photo key={index} {...item}/>
+            {photo.map((item) => {
+              return <Photo key={item.id} {...item}/>
             })}
           </div>
-          {isLoading && <Loading/>}
+          {isLoading && <h2 className="section-title">loading...</h2>}
         </section>
       </main>
     </>
